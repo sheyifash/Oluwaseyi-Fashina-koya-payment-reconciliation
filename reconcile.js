@@ -8,11 +8,39 @@ const fs = require("fs");
 let total = 0;
 let count = 0;
 
+const latestEvents = new Map();
+
 const lines = fs.readFileSync("payments.jsonl", "utf8").split("\n").filter((l) => l.length > 0);
 for (const line of lines) {
-  const event = JSON.parse(line);
+  if (!line.trim()) continue;
+
+  let event;
+
+  try {
+    event = JSON.parse(line);
+  } catch {
+    continue;
+  }
+
+  if (
+    !event ||
+    event.txn_id === undefined ||
+    event.txn_id === null ||
+    event.txn_id === ""
+  ) {
+    continue;
+  }
+
+  const previous = latestEvents.get(event.txn_id);
+
+  if (!previous || Date.parse(event.ts) >= Date.parse(previous.ts)) {
+    latestEvents.set(event.txn_id, event);
+  }
+}
+
+for (const event of latestEvents.values()) {
   if (event.status === "success") {
-    total += Number(event.amount);
+  total += Number(String(event.amount).replace(/,/g, ""));
     count += 1;
   }
 }
